@@ -38,7 +38,7 @@ knitr::opts_chunk$set(eval=FALSE, warning = FALSE, message = FALSE )
 ------------------------------------------------------------------------
 
 ```{r}
-
+# Load libraries
 library(tidyverse)
 library(here)
 library(janitor)
@@ -125,7 +125,19 @@ Create new `df` named `spiny_counts`
 
 #HINT(e): Use `case_when()` to create the 3 new variable columns
 
-spiny_counts <- 
+spiny_counts <- tidydata %>% 
+    group_by(site, year, transect) %>% 
+    summarize(counts = sum(!is.na(size_mm)),
+              mean_size = mean(size_mm, na.rm = TRUE),
+              .groups = 'drop') %>% 
+    mutate(mpa = case_when(
+        site %in% c('NAPL', "IVEE") ~ "MPA",
+        TRUE ~ "non_MPA"
+    ),
+    treat = case_when(
+      mpa == "MPA" ~ 1,
+      mpa == "non_MPA" ~ 0
+    ))
 
 ```
 
@@ -136,6 +148,17 @@ spiny_counts <-
 Step 3: Explore & visualize data
 
 **a.** Take a look at the data! Get familiar with the data in each `df` format (`tidydata`, `spiny_counts`)
+
+```{r}
+# Data Exploration
+# First 5 rows of each
+print(head(spiny_counts))
+print(head(tidydata))
+
+# Datatypes of each column
+print(spiny_counts %>% summarise_all(class))
+print(tidydata %>% summarise_all(class))
+```
 
 **b.** We will focus on the variables `count`, `year`, `site`, and `treat`(`mpa`) to model lobster abundance. Create the following 4 plots using a different method each time from the 6 options provided. Add a layer (`geom`) to each of the plots including informative descriptive statistics (you choose; e.g., mean, median, SD, quartiles, range). Make sure each plot dimension is clearly labeled (e.g., axes, groups).
 
@@ -148,7 +171,7 @@ Step 3: Explore & visualize data
 
 Create plots displaying the distribution of lobster **counts**:
 
-1)  grouped by reef site\
+1)  grouped by reef site
 2)  grouped by MPA status
 3)  grouped by year
 
@@ -157,11 +180,46 @@ Create a plot of lobster **size** :
 4)  You choose the grouping variable(s)!
 
 ```{r}
-# plot 1: ....
+# plot 1: Density Plot
 
 spiny_counts %>% 
 ggplot()
     
+```
+
+```{r}
+# plot 2: Ridge plot
+
+spiny_counts %>% 
+ggplot()
+```
+
+```{r}
+# Plot 3: Jitter plot
+
+spiny_counts %>% 
+ggplot()
+```
+
+```{r}
+# Plot 4: Violin plot
+
+spiny_counts %>% 
+ggplot()
+```
+
+```{r}
+# Plot 5: Histogram
+
+spiny_counts %>% 
+ggplot()
+```
+
+```{r}
+# Plot 6: Beeswarm plot
+
+spiny_counts %>% 
+ggplot()
 ```
 
 **c.** Compare means of the outcome by treatment group. Using the `tbl_summary()` function from the package [`gt_summary`](https://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html)
