@@ -3,6 +3,7 @@ title: "Assignment 1: California Spiny Lobster Abundance (*Panulirus Interruptus
 subtitle: "Assessing the Impact of Marine Protected Areas (MPAs) at 5 Reef Sites in Santa Barbara County"
 author: "Eva Newby"
 date: "1/8/2024 (Due 1/26)"
+warning: false
 output: 
     html_document:
       theme: flatly
@@ -215,14 +216,17 @@ ggplot(aes(x = count, y = site, fill = site))+
 
 spiny_counts %>% 
 ggplot(aes(x = year, y = count)) + 
-    geom_histogram(stat = "identity", 
+    geom_histogram(stat = 'identity',
                    fill = 'cornflowerblue', 
                    binwidth = 1) +
     labs(title = "Histogram of Lobster Counts by Year",
          x = "Year",
-         y = "Count Frequency") +
+         y = "Lobster Count") +
     theme_minimal() +
-    theme(legend.position = 'none')
+    stat_summary(fun = spiny_counts$count(mean), 
+                 geom = 'vline',
+                 ) # average count 
+
 # Add summary statistic
 ```
 
@@ -233,14 +237,24 @@ spiny_counts %>%
 ggplot(aes(x = site,
            y = mean_size,
            color = site))+
-    geom_jitter(alpha = 0.7)
-# Need to add in a summary statistic 
+    geom_jitter(alpha = 0.7)+
+    geom_boxplot(alpha = 0.5) # summary statistics present in boxplot
 ```
 
 **c.** Compare means of the outcome by treatment group. Using the `tbl_summary()` function from the package [`gt_summary`](https://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html)
 
 ```{r}
 # USE: gt_summary::tbl_summary()
+
+spiny_counts %>%
+  dplyr::select(count, treat) %>%
+  tbl_summary(
+    by = treat,  # Group by MPA treatment status (0 or 1)
+    statistic = list(all_continuous() ~ "{mean}"),  # Show mean 
+    missing = "no"  # remove missing values
+  ) %>%
+  add_p(test = list(count ~ "t.test"))  # Perform t-test to compare means
+
 ```
 
 ------------------------------------------------------------------------
@@ -254,11 +268,13 @@ Step 4: OLS regression- building intuition
 ```{r}
 # NOTE: We will not evaluate/interpret model fit in this assignment (e.g., R-square)
 
-m1_ols <- 
+m1_ols <- lm(count ~ treat, spiny_counts)
 
 summ(m1_ols, model.fit = FALSE) 
 
 ```
+
+Interpretation: On average, there are 22.73 lobsters counted in non-MPA sites (intercept, or Beta 0) whereas MPA sites have 5.36 more lobsters on average compared to non-MPA sites (Beta 1). However, this difference could be due to chance (as our p-value is 0.3, not statistically significant).
 
 **c.** Check the model assumptions using the `check_model` function from the `performance` package
 
@@ -268,17 +284,25 @@ summ(m1_ols, model.fit = FALSE)
 check_model(m1_ols,  check = "qq" )
 ```
 
+Explanation: The deviations from the lines suggest the data is not normally distributed.
+
 ```{r}
 check_model(m1_ols, check = "normality")
 ```
+
+Explanation: The skew suggests that the data is not normally distributed.
 
 ```{r}
 check_model(m1_ols, check = "homogeneity")
 ```
 
+Explanation: The graph shows a more U-shaped curve which indicates that the variance of residuals is not constant across fitted values (heteroscedasticity), and this violates one of the assumptions of OLS. Additionally, the residuals are more extreme at either end, suggesting that the model predictions are less accurate for extreme values.
+
 ```{r}
 check_model(m1_ols, check = "pp_check")
 ```
+
+Explanation: As our observed data doesn't seem to match our model-predicted data that well, alternative models should be explored.
 
 ------------------------------------------------------------------------
 
@@ -288,20 +312,38 @@ Step 5: Fitting GLMs
 
 **b.** Interpret the predictor coefficient in your own words. Use full sentences and write your interpretation of the results to be as clear as possible to a non-academic audience.
 
+```{r}
+# Exponentiate the coefficients for more clear interpretation
+exp(coef(m2_pois))
+
+# Percentage change
+(1.235956 - 1) * 100
+```
+
+On average, the expected lobster count in non-MPA areas is 22.729 lobsters. On average, the expected lobster count in MPA areas is 1.235 times greater than in non-MPA areas, meaning MPA areas have an approx 23.6% higher lobster count than non-MPA areas.
+
 **c.** Explain the statistical concept of dispersion and overdispersion in the context of this model.
 
+Dispersion refers to how far away data is from the mean. An assumption of the poisson model is that the variance and the mean are equal, and that the data is not overdispersed (variance greater than the mean). If the variance is greater than the mean, then a negative binomial regression should be used instead of poisson.
+
 **d.** Compare results with previous model, explain change in the significance of the treatment effect
+
+It is clear that OLS is not the best model for our data, as our data violates several of OLS' assumptions (such as normal distribution). The poisson model assesses a log-linear relationship, which appears to be more accurate for the data. However, depending on whether or not there is overdispersion, the standard errors in the poisson model may be inaccurate. This could make it seem that the change in significance was larger than it actually was.
 
 ```{r}
 #HINT1: Incidence Ratio Rate (IRR): Exponentiation of beta returns coefficient which is interpreted as the 'percent change' for a one unit increase in the predictor 
 
 #HINT2: For the second glm() argument `family` use the following specification option `family = poisson(link = "log")`
 
-m2_pois <- 
+m2_pois <- glm(count ~ treat, spiny_counts, family = poisson(link = 'log'))
+
+summary(m2_pois)
 
 ```
 
 **e.** Check the model assumptions. Explain results.
+
+The key model assumptions for poisson is that the daya must represent count data, the mean equals the variance (no overdispersion), there is a log-linear relationship, zero-inflation (no zero counts in the data), and observations must be independent of each other.
 
 **f.** Conduct tests for over-dispersion & zero-inflation. Explain results.
 
@@ -321,14 +363,18 @@ check_zeroinflation(m2_pois)
 
 **h.** In 1-2 sentences explain rationale for fitting this GLM model.
 
+As overdispersion was found to be present in the last step, a negative binomial regression model is a better option for a more accurate fitting compared to a poisson model.
+
 **i.** Interpret the treatment estimate result in your own words. Compare with results from the previous model.
 
-```{r}
+This model appears to be a better fit, as overdispersion is not occurring; however, the model is still over-fitting zeros.
 
+```{r}
 # NOTE: The `glm.nb()` function does not require a `family` argument
 
-m3_nb <- 
+m3_nb <- glm.nb(count ~ treat, spiny_counts)
 
+summary(m3_nb)
 ```
 
 ```{r}
@@ -355,9 +401,11 @@ Step 6: Compare models
 
 **c.** Write a short paragraph comparing the results. Is the treatment effect `robust` or stable across the model specifications.
 
-```{r}
+There is variation in the treatment effect between the three models. The results of the OLS model show no statistically significant effect on lobster count in MPA vs non-MPA, where as both poisson and negative binomial regression both show statistically significant effects. The treatment effect is robust and/or stable across both the poisson and negative binomial regression analysis, but not OLS.
 
-export_summs(# ADD MODELS
+```{r}
+# Position 3 models side by side
+export_summs(list(m1_ols, m2_pois, m3_nb),
              model.names = c("OLS","Poisson", "NB"),
              statistics = "none")
 
@@ -369,23 +417,25 @@ Step 7: Building intuition - fixed effects
 
 **a.** Create new `df` with the `year` variable converted to a factor
 
-**b.** Run the following OLS model using `lm()`
+**b.** Run the following negative binomial model using `glm.nb()`
 
--   Use the following specification for the outcome `log(counts+1)`
--   Estimate fixed effects for `year`
--   Include an interaction term between variables `treat` and `year`
+-   Add fixed effects for `year` (i.e., dummy coefficients)
+
+-   Include an interaction term between variables `treat` & `year` (`treat*year`)
 
 **c.** Take a look at the regression output. Each coefficient provides a comparison or the difference in means for a specific sub-group in the data. Informally, describe the what the model has estimated at a conceptual level (NOTE: you do not have to interpret coefficients individually)
 
 **d.** Explain why the main effect for treatment is negative? \*Does this result make sense?
 
 ```{r}
-
 ff_counts <- spiny_counts %>% 
     mutate(year=as_factor(year))
     
-m5_fixedeffs <- lm(
-    log(counts+1) ~ treat*year,
+m5_fixedeffs <- glm.nb(
+    count ~ 
+        treat +
+        year +
+        treat*year,
     data = ff_counts)
 
 summ(m5_fixedeffs, model.fit = FALSE)
@@ -397,17 +447,15 @@ summ(m5_fixedeffs, model.fit = FALSE)
 
 ```{r}
 
-# Hint 1: Group counts by `year` and `mpa` and calculate the `mean_count`
-# Hint 2: Convert variable `year` to a factor
-
 interact_plot(m5_fixedeffs, pred = year, modx = treat,
-              outcome.scale = "response")
+              outcome.scale = "link") # NOTE: y-axis on log-scale
 
+# HINT: Change `outcome.scale` to "response" to convert y-axis scale to counts
 ```
 
 **g.** Using `ggplot()` create a plot in same style as the previous `interaction plot`, but displaying the original scale of the outcome variable (lobster counts). This type of plot is commonly used to show how the treatment effect changes across discrete time points (i.e., panel data).
 
-The plot should have... - `year` on the x-axis - `counts` on the y-axis - `mpa` as the grouping variable
+The plot should have… - `year` on the x-axis - `counts` on the y-axis - `mpa` as the grouping variable
 
 ```{r}
 # Hint 1: Group counts by `year` and `mpa` and calculate the `mean_count`
