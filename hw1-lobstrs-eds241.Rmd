@@ -2,7 +2,7 @@
 title: "Assignment 1: California Spiny Lobster Abundance (*Panulirus Interruptus*)"
 subtitle: "Assessing the Impact of Marine Protected Areas (MPAs) at 5 Reef Sites in Santa Barbara County"
 author: "Eva Newby"
-date: "1/8/2024 (Due 1/26)"
+date: "1/8/2024 (Due 1/26), Regrade due 2/10"
 output: 
     html_document:
       theme: flatly
@@ -234,14 +234,15 @@ ggplot(
 ```
 
 ```{r}
-# Plot 4: Jitter plot grouped by lobster size
+# Plot 4: Jitter plot grouped by lobster size *updated*
 
 spiny_counts %>% 
 ggplot(aes(x = site,
            y = mean_size,
            color = site))+
     geom_jitter(alpha = 0.7)+
-    geom_boxplot(alpha = 0.5) # summary statistics present in boxplot
+    geom_boxplot(alpha = 0.5) + # summary statistics present in boxplot
+    labs(title = "Jitter Plot of Mean Lobster Size per MPA")
 ```
 
 **c.** Compare means of the outcome by treatment group. Using the `tbl_summary()` function from the package [`gt_summary`](https://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html)
@@ -287,13 +288,13 @@ Interpretation: On average, there are 22.73 lobsters counted in non-MPA sites (i
 check_model(m1_ols,  check = "qq" )
 ```
 
-Explanation: The deviations from the lines suggest the data is not normally distributed.
+Explanation *updated*: The deviations from the lines suggest the data is not normally distributed (it is skewed). QQ plots assess the normality of residuals, where each dot is a quantile of a sampled residual and the line represents expected quantiles. If the dots followed the line more closely, it would indicate that the data is normally distributed.
 
 ```{r}
 check_model(m1_ols, check = "normality")
 ```
 
-Explanation: The skew suggests that the data is not normally distributed.
+Explanation *updated*: The right skew suggests that the data is not normally distributed. The blue region represents the distribution of the residuals, while the green line represents an expected normal distribution. If the residuals were normally distributed, their density would closely follow the green curve.
 
 ```{r}
 check_model(m1_ols, check = "homogeneity")
